@@ -5,12 +5,10 @@ Auth::requireRole('student');
 
 $studentModel = new Student();
 $userModel    = new User();
-$prModel      = new ProfileRequestModel();
 $error        = '';
 $uid          = Auth::userId();
 
 $student = $studentModel->findByUserId($uid);
-$hasPendingRequest = $prModel->hasPending($uid);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -25,34 +23,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (strlen($newPass) < 6) {
             $error = 'New password must be at least 6 characters.';
         } elseif ($newPass !== $confirm) {
-            $error = 'New passwords do not match.';
+            $error = 'Passwords do not match.';
         } else {
             $userModel->updatePassword($uid, $newPass);
-            Helper::setFlash('success', 'Password changed successfully.');
+            Helper::setFlash('success', 'Password updated successfully.');
             Helper::redirect('student/profile.php');
         }
     }
 
-    if ($action === 'request_update') {
-        if ($hasPendingRequest) {
-            $error = 'You already have a pending profile change request.';
+    if ($action === 'update_profile') {
+        $name      = trim($_POST['name']  ?? '');
+        $phone     = trim($_POST['phone'] ?? '');
+        $photoPath = $student['profile_photo'];
+
+        if (empty($name)) {
+            $error = 'Name is required.';
         } else {
-            $data = [
-                'name'  => trim($_POST['name']  ?? $student['name']),
-                'phone' => trim($_POST['phone'] ?? $student['phone']),
-            ];
             if (!empty($_FILES['photo']['name'])) {
                 $uploader = new FileUpload('photos', ALLOWED_PHOTO_EXTENSIONS, 5*1024*1024);
                 $res = $uploader->upload($_FILES['photo']);
                 if ($res['success']) {
-                    $data['photo'] = $res['path'];
+                    $photoPath = $res['path'];
                 } else {
                     $error = 'Photo upload failed: ' . $res['message'];
                 }
             }
+
             if (!$error) {
-                $prModel->create($uid, $data);
-                Helper::setFlash('success', 'Profile change request submitted. Awaiting admin approval.');
+                $userModel->updateBasicInfo($uid, $name);
+                $userModel->updatePhoto($uid, $photoPath);
+                $studentModel->updatePhone($uid, $phone);
+                Helper::setFlash('success', 'Profile updated successfully.');
                 Helper::redirect('student/profile.php');
             }
         }
@@ -73,26 +74,21 @@ include '../includes/header.php';
 <?php if ($error): ?><div class="alert alert-danger"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
 <div class="page-header">
-    <div><h2>👤 My Profile</h2><div class="page-subtitle">View profile, change password, or request information updates</div></div>
+    <div><h2>👤 My Profile</h2><div class="page-subtitle">View and edit your profile details</div></div>
 </div>
 
-<?php if ($hasPendingRequest): ?>
-<div class="pending-request-banner">⏳ You have a pending profile change request awaiting admin approval.</div>
-<?php endif; ?>
-
-<div style="display:grid;grid-template-columns:1fr 1.4fr;gap:24px;align-items:start">
-
+<div style="display:grid; grid-template-columns:1fr 1.4fr; gap:24px; align-items:start">
     <div class="profile-card">
-        <div class="profile-header" style="background:linear-gradient(135deg,#0c4a6e,#0284c7)">
+        <div class="profile-header" style="background:linear-gradient(135deg, #0c4a6e, #0284c7)">
             <div class="profile-avatar">
-                <?php if ($student['profile_photo']): ?><img src="<?= UPLOAD_URL . htmlspecialchars($student['profile_photo']) ?>" alt=""><?php else: ?><?= Helper::initials($student['name']) ?><?php endif; ?>
+                <?php if ($student['profile_photo']): ?><img src="<?= UPLOAD_URL . htmlspecialchars($student['profile_photo']) ?>" alt=""><<?php else: ?><?= Helper::initials($student['name']) ?><?php endif; ?>
             </div>
             <div>
                 <div class="profile-info-name"><?= htmlspecialchars($student['name']) ?></div>
                 <div class="profile-info-role">🎓 Student <?php if($student['is_cr']): ?><span class="badge badge-primary" style="margin-left:6px">CR</span><?php endif; ?></div>
             </div>
         </div>
-        <div class="profile-body">
+        <div class="profile-body" style="padding: 20px;">
             <div class="profile-field"><span class="profile-field-label">📧 Email</span><span class="profile-field-value"><?= htmlspecialchars($student['email']) ?></span></div>
             <div class="profile-field"><span class="profile-field-label">🎫 Roll</span><span class="profile-field-value"><?= htmlspecialchars($student['roll']) ?></span></div>
             <div class="profile-field"><span class="profile-field-label">📋 Reg. No</span><span class="profile-field-value"><?= htmlspecialchars($student['registration_no']) ?></span></div>
@@ -102,17 +98,16 @@ include '../includes/header.php';
         </div>
     </div>
 
-    <div style="display:flex;flex-direction:column;gap:20px">
-        <div class="card">
-            <div class="card-header"><span class="card-title">✏️ Request Information Update</span></div>
+    <div>
+        <div class="card mb-3">
+            <div class="card-header"><span class="card-title">✏️ Update Information</span></div>
             <div class="card-body">
-                <div class="form-hint mb-2">⚠️ Changes to your name, phone, or photo require admin approval.</div>
                 <form method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="action" value="request_update">
-                    <div class="form-group"><label class="form-label">Full Name</label><input type="text" name="name" class="form-control" value="<?= htmlspecialchars($student['name']) ?>" <?= $hasPendingRequest?'disabled':'' ?>></div>
-                    <div class="form-group"><label class="form-label">Phone</label><input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($student['phone']??'') ?>" <?= $hasPendingRequest?'disabled':'' ?>></div>
-                    <div class="form-group"><label class="form-label">New Photo (optional)</label><input type="file" name="photo" class="form-control" accept=".jpg,.jpeg,.png" <?= $hasPendingRequest?'disabled':'' ?>></div>
-                    <button type="submit" class="btn btn-primary" <?= $hasPendingRequest?'disabled':'' ?>>Submit for Approval</button>
+                    <input type="hidden" name="action" value="update_profile">
+                    <div class="form-group"><label class="form-label">Full Name</label><input type="text" name="name" class="form-control" required value="<?= htmlspecialchars($student['name']) ?>"></div>
+                    <div class="form-group"><label class="form-label">Phone</label><input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($student['phone']??'') ?>"></div>
+                    <div class="form-group"><label class="form-label">New Photo</label><input type="file" name="photo" class="form-control" accept=".jpg,.jpeg,.png"></div>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
                 </form>
             </div>
         </div>
@@ -120,7 +115,6 @@ include '../includes/header.php';
         <div class="card">
             <div class="card-header"><span class="card-title">🔒 Change Password</span></div>
             <div class="card-body">
-                <div class="form-hint mb-2">✅ Password changes take effect immediately.</div>
                 <form method="POST">
                     <input type="hidden" name="action" value="change_password">
                     <div class="form-group"><label class="form-label">Current Password</label><input type="password" name="current_password" class="form-control" required></div>

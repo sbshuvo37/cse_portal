@@ -9,9 +9,8 @@ $settingsModel = new SettingsModel();
 $settings      = $settingsModel->get();
 $error         = '';
 
-// Step is controlled client-side with JS, but server validates everything at once on final submit.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $role     = trim($_POST['role']     ?? '');
+    $role     = trim($_POST['role']     ?? 'student');
     $name     = trim($_POST['name']     ?? '');
     $email    = trim($_POST['email']    ?? '');
     $phone    = trim($_POST['phone']    ?? '');
@@ -29,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $userModel = new User();
 
-    // ── Validation ───────────────────────────────────────────
+    // Validation
     if (!in_array($role, ['student', 'teacher'], true)) {
         $error = 'Please select a valid role.';
     } elseif (empty($name) || empty($email) || empty($phone)) {
@@ -49,14 +48,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($userModel->emailExists($email)) {
         $error = 'This email is already registered. Please use a different email or log in.';
     } else {
-        // ── Upload photo ──────────────────────────────────────
+        // Upload photo
         $uploader = new FileUpload('photos', ALLOWED_PHOTO_EXTENSIONS, 5 * 1024 * 1024);
         $uploadResult = $uploader->upload($_FILES['photo']);
 
         if (!$uploadResult['success']) {
             $error = $uploadResult['message'];
         } else {
-            // ── Create user (status = pending) ───────────────
+            // Create user (status = pending)
             $userId = $userModel->create($name, $email, $password, $role, 'pending', $uploadResult['path']);
 
             if ($role === 'student') {
@@ -86,6 +85,7 @@ $old = $_POST ?? [];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register — <?= htmlspecialchars($settings['portal_name']) ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/auth.css">
 </head>
 <body class="auth-page">
@@ -106,102 +106,92 @@ $old = $_POST ?? [];
 
     <div class="auth-right">
         <div class="auth-form-title">Create Account</div>
-        <div class="auth-form-subtitle">Step 1: Personal Info &nbsp;→&nbsp; Step 2: Security</div>
-
-        <div class="step-indicator">
-            <div class="step-circle active" id="stepCircle1">1</div>
-            <div class="step-line" id="stepLine"></div>
-            <div class="step-circle" id="stepCircle2">2</div>
-        </div>
+        <div class="auth-form-subtitle">Please enter your information to register</div>
 
         <?php if ($error): ?><div class="auth-alert auth-alert-danger">⚠️ <?= htmlspecialchars($error) ?></div><?php endif; ?>
 
         <form class="auth-form" method="POST" enctype="multipart/form-data" id="registerForm">
+            <input type="hidden" name="role" id="roleInput" value="student">
 
-            <!-- ============ STEP 1: Personal + Academic Info ============ -->
-            <div id="step1">
-                <div class="form-group">
-                    <label class="form-label">I am registering as *</label>
-                    <div class="role-selector">
-                        <label class="role-option <?= ($old['role'] ?? '')==='student' ? 'selected' : '' ?>">
-                            <input type="radio" name="role" value="student" <?= ($old['role'] ?? '')==='student' ? 'checked' : '' ?>>
-                            <div class="role-icon">🎓</div><div>Student</div>
-                        </label>
-                        <label class="role-option <?= ($old['role'] ?? '')==='teacher' ? 'selected' : '' ?>">
-                            <input type="radio" name="role" value="teacher" <?= ($old['role'] ?? '')==='teacher' ? 'checked' : '' ?>>
-                            <div class="role-icon">👨‍🏫</div><div>Teacher</div>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Profile Photo *</label>
-                    <label class="photo-upload-box" id="photoBox">
-                        <div id="photoPreview">
-                            <div class="upload-icon">📷</div>
-                            <div class="upload-text">Click to upload your photo (JPG/PNG, required)</div>
-                        </div>
-                        <input type="file" name="photo" class="photo-input" data-preview-target="photoPreview" accept=".jpg,.jpeg,.png" style="display:none" required>
+            <!-- Role Selector: Selected state is active as student by default on load [Point 1] -->
+            <div class="form-group">
+                <label class="form-label">I am registering as *</label>
+                <div class="role-selector">
+                    <label class="role-option selected" id="btnStudent">
+                        <div class="role-icon">🎓</div><div>Student</div>
+                    </label>
+                    <label class="role-option" id="btnTeacher">
+                        <div class="role-icon">👨‍🏫</div><div>Teacher</div>
                     </label>
                 </div>
-
-                <div class="form-group">
-                    <label class="form-label">Full Name *</label>
-                    <input type="text" name="name" class="form-control" required value="<?= htmlspecialchars($old['name'] ?? '') ?>">
-                </div>
-                <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                    <div class="form-group">
-                        <label class="form-label">Email *</label>
-                        <input type="email" name="email" class="form-control" required value="<?= htmlspecialchars($old['email'] ?? '') ?>">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Phone *</label>
-                        <input type="text" name="phone" class="form-control" required value="<?= htmlspecialchars($old['phone'] ?? '') ?>">
-                    </div>
-                </div>
-
-                <!-- Student-only fields -->
-                <div data-role-fields="student" style="display:<?= ($old['role'] ?? '')==='teacher' ? 'none' : 'block' ?>">
-                    <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                        <div class="form-group">
-                            <label class="form-label">Roll *</label>
-                            <input type="text" name="roll" class="form-control" value="<?= htmlspecialchars($old['roll'] ?? '') ?>">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Registration No *</label>
-                            <input type="text" name="reg_no" class="form-control" value="<?= htmlspecialchars($old['reg_no'] ?? '') ?>">
-                        </div>
-                    </div>
-                    <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                        <div class="form-group">
-                            <label class="form-label">Batch *</label>
-                            <select name="batch_id" class="form-control">
-                                <option value="">Select Batch</option>
-                                <?php foreach ($batches as $b): ?>
-                                <option value="<?= $b['batch_id'] ?>" <?= ($old['batch_id'] ?? '')==$b['batch_id'] ? 'selected' : '' ?>><?= htmlspecialchars($b['batch_name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Session *</label>
-                            <input type="text" name="session" class="form-control" placeholder="e.g. 2020-2024" value="<?= htmlspecialchars($old['session'] ?? '') ?>">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Teacher-only field -->
-                <div data-role-fields="teacher" style="display:<?= ($old['role'] ?? '')==='teacher' ? 'block' : 'none' ?>">
-                    <div class="form-group">
-                        <label class="form-label">Designation *</label>
-                        <input type="text" name="designation" class="form-control" placeholder="e.g. Lecturer" value="<?= htmlspecialchars($old['designation'] ?? '') ?>">
-                    </div>
-                </div>
-
-                <button type="button" class="btn-auth" onclick="goToStep(2)">Continue to Security →</button>
             </div>
 
-            <!-- ============ STEP 2: Account Security ============ -->
-            <div id="step2" style="display:none">
+            <!-- Profile Photo Upload -->
+            <div class="form-group">
+                <label class="form-label">Profile Photo *</label>
+                <label class="photo-upload-box-unified" id="photoBox">
+                    <div id="photoPreview">
+                        <div class="upload-icon">📷</div>
+                        <div class="upload-text">Click to upload your photo (JPG/PNG, required)</div>
+                    </div>
+                    <input type="file" name="photo" class="photo-input" id="photoFileInput" accept=".jpg,.jpeg,.png" style="display:none" required>
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Full Name *</label>
+                <input type="text" name="name" class="form-control" required value="<?= htmlspecialchars($old['name'] ?? '') ?>">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Email *</label>
+                    <input type="email" name="email" class="form-control" required value="<?= htmlspecialchars($old['email'] ?? '') ?>">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone *</label>
+                    <input type="text" name="phone" class="form-control" required value="<?= htmlspecialchars($old['phone'] ?? '') ?>">
+                </div>
+            </div>
+
+            <!-- Student Fields (Displayed by default) -->
+            <div id="studentFields">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Roll *</label>
+                        <input type="text" name="roll" id="inputRoll" class="form-control" value="<?= htmlspecialchars($old['roll'] ?? '') ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Registration No *</label>
+                        <input type="text" name="reg_no" id="inputReg" class="form-control" value="<?= htmlspecialchars($old['reg_no'] ?? '') ?>">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Batch *</label>
+                        <select name="batch_id" id="selectBatch" class="form-control">
+                            <option value="">Select Batch</option>
+                            <?php foreach ($batches as $b): ?>
+                            <option value="<?= $b['batch_id'] ?>" <?= ($old['batch_id'] ?? '')==$b['batch_id'] ? 'selected' : '' ?>><?= htmlspecialchars($b['batch_name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Session *</label>
+                        <input type="text" name="session" id="inputSession" class="form-control" placeholder="e.g. 2020-2024" value="<?= htmlspecialchars($old['session'] ?? '') ?>">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Teacher Fields (Hidden by default) -->
+            <div id="teacherFields" style="display:none">
+                <div class="form-group">
+                    <label class="form-label">Designation *</label>
+                    <input type="text" name="designation" id="inputDesignation" class="form-control" placeholder="e.g. Lecturer" value="<?= htmlspecialchars($old['designation'] ?? '') ?>">
+                </div>
+            </div>
+
+            <div class="form-row">
                 <div class="form-group">
                     <label class="form-label">Password *</label>
                     <input type="password" name="password" class="form-control" placeholder="Min. 6 characters" required>
@@ -210,14 +200,9 @@ $old = $_POST ?? [];
                     <label class="form-label">Confirm Password *</label>
                     <input type="password" name="confirm" class="form-control" placeholder="Repeat password" required>
                 </div>
-
-                <div class="auth-alert auth-alert-info">ℹ️ Your account will be <strong>pending</strong> until an admin approves it.</div>
-
-                <div class="btn-row">
-                    <button type="button" class="btn-auth secondary" onclick="goToStep(1)">← Back</button>
-                    <button type="submit" class="btn-auth">Submit Registration</button>
-                </div>
             </div>
+
+            <button type="submit" class="btn-auth" style="margin-top:20px;">Submit Registration</button>
         </form>
 
         <div class="auth-switch">
@@ -227,32 +212,61 @@ $old = $_POST ?? [];
 </div>
 
 <script>
-function goToStep(step) {
-    document.getElementById('step1').style.display = step === 1 ? 'block' : 'none';
-    document.getElementById('step2').style.display = step === 2 ? 'block' : 'none';
-    document.getElementById('stepCircle1').className = 'step-circle ' + (step >= 1 ? (step > 1 ? 'done' : 'active') : '');
-    document.getElementById('stepCircle2').className = 'step-circle ' + (step === 2 ? 'active' : '');
-    document.getElementById('stepLine').className = 'step-line ' + (step === 2 ? 'done' : '');
+const studentFields = document.getElementById('studentFields');
+const teacherFields = document.getElementById('teacherFields');
+const btnStudent = document.getElementById('btnStudent');
+const btnTeacher = document.getElementById('btnTeacher');
+const roleInput = document.getElementById('roleInput');
+
+const inputRoll = document.getElementById('inputRoll');
+const inputReg = document.getElementById('inputReg');
+const selectBatch = document.getElementById('selectBatch');
+const inputSession = document.getElementById('inputSession');
+const inputDesignation = document.getElementById('inputDesignation');
+
+function setRole(role) {
+    roleInput.value = role;
+    if (role === 'student') {
+        studentFields.style.display = 'block';
+        teacherFields.style.display = 'none';
+        
+        inputRoll.required = true;
+        inputReg.required = true;
+        selectBatch.required = true;
+        inputSession.required = true;
+        inputDesignation.required = false;
+
+        btnStudent.classList.add('selected');
+        btnTeacher.classList.remove('selected');
+    } else {
+        studentFields.style.display = 'none';
+        teacherFields.style.display = 'block';
+
+        inputRoll.required = false;
+        inputReg.required = false;
+        selectBatch.required = false;
+        inputSession.required = false;
+        inputDesignation.required = true;
+
+        btnStudent.classList.remove('selected');
+        btnTeacher.classList.add('selected');
+    }
 }
 
-document.querySelectorAll('.role-option').forEach(opt => {
-    opt.addEventListener('click', () => {
-        document.querySelectorAll('.role-option').forEach(o => o.classList.remove('selected'));
-        opt.classList.add('selected');
-        opt.querySelector('input').checked = true;
-        const role = opt.querySelector('input').value;
-        document.querySelectorAll('[data-role-fields]').forEach(el => {
-            el.style.display = el.dataset.roleFields === role ? 'block' : 'none';
-        });
-    });
-});
+// Student is active visually by default on load [Point 1]
+setRole('student');
 
-document.querySelector('.photo-input')?.addEventListener('change', function() {
+btnStudent.addEventListener('click', () => setRole('student'));
+btnTeacher.addEventListener('click', () => setRole('teacher'));
+
+document.getElementById('photoFileInput')?.addEventListener('change', function() {
     const file = this.files[0];
     const preview = document.getElementById('photoPreview');
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (e) => { preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`; };
+    reader.onload = (e) => {
+        preview.innerHTML = `<img src="${e.target.result}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover;" alt="Preview">`;
+    };
     reader.readAsDataURL(file);
 });
 </script>

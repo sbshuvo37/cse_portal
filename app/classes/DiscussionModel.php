@@ -3,6 +3,7 @@
  * DiscussionModel — discussion_groups + discussion_messages operations
  * WhatsApp-style group chat: one group per Course+Batch (teacher-created)
  * or per Course across all batches (admin-created, batch_id = NULL).
+ * Supported: Custom Group Memberships [Point 5, 6]
  * CSE Department Portal
  */
 class DiscussionModel
@@ -20,15 +21,22 @@ class DiscussionModel
      * Create a group. Returns ['success'=>bool,'message'=>string,'group_id'=>int|null]
      * A group is unique per (course_id, batch_id) — including batch_id IS NULL for admin's all-batch groups.
      */
-    public function createGroup(int $courseId, ?int $batchId, int $createdBy, ?string $title = null): array
+    public function createGroup(?int $courseId, ?int $batchId, int $createdBy, ?string $title = null): array
     {
-        $existing = $this->findGroupByCourseBatch($courseId, $batchId);
-        if ($existing) {
-            return ['success' => false, 'message' => 'A discussion group already exists for this course/batch.', 'group_id' => (int)$existing['group_id']];
+        // If courseId is provided, check if group already exists
+        if ($courseId) {
+            $existing = $this->findGroupByCourseBatch($courseId, $batchId);
+            if ($existing) {
+                return [
+                    'success' => false, 
+                    'message' => 'A discussion group already exists for this course/batch.', 
+                    'group_id' => (int)$existing['group_id']
+                ];
+            }
         }
         $stmt = $this->db->prepare("INSERT INTO discussion_groups (course_id, batch_id, created_by, title) VALUES (?,?,?,?)");
-        $stmt->execute([$courseId, $batchId, $createdBy, $title]);
-        return ['success' => true, 'message' => 'Discussion group created.', 'group_id' => (int) $this->db->lastInsertId()];
+        $stmt->execute([$courseId ?: null, $batchId, $createdBy, $title]);
+        return ['success' => true, 'message' => 'Discussion group created.', 'group_id' => (int)$this->db->lastInsertId()];
     }
 
     public function findGroupByCourseBatch(int $courseId, ?int $batchId): ?array
@@ -49,7 +57,7 @@ class DiscussionModel
         $stmt = $this->db->prepare(
             "SELECT dg.*, c.course_code, c.course_title, b.batch_name, u.name AS creator_name
              FROM discussion_groups dg
-             JOIN courses c ON dg.course_id = c.course_id
+             LEFT JOIN courses c ON dg.course_id = c.course_id
              LEFT JOIN batches b ON dg.batch_id = b.batch_id
              JOIN users u ON dg.created_by = u.id
              WHERE dg.group_id = ?"
@@ -59,46 +67,65 @@ class DiscussionModel
         return $row ?: null;
     }
 
-    /** Groups visible to a teacher: ones they created OR for courses they teach */
-    public function groupsForTeacherCourses(array $courseBatchPairs): array
+    /** Groups visible to a teacher: ones they created OR for courses they teach OR custom group member [Point 6] */
+    public function groupsForTeacherCourses(array $courseBatchPairs, ?int $userId = null): array
     {
-        if (empty($courseBatchPairs)) return [];
-        $clauses = [];
-        $params  = [];
-        foreach ($courseBatchPairs as $pair) {
-            $clauses[] = "(dg.course_id = ? AND (dg.batch_id = ? OR dg.batch_id IS NULL))";
-            $params[]  = $pair['course_id'];
-            $params[]  = $pair['batch_id'];
+        $uid = $userId ?: Auth::userId();
+        $where = "0";
+        $params = [];
+        
+        if (!empty($courseBatchPairs)) {
+            $clauses = [];
+            foreach ($courseBatchPairs as $pair) {
+                $clauses[] = "(dg.course_id = ? AND (dg.batch_id = ? OR dg.batch_id IS NULL))";
+                $params[]  = $pair['course_id'];
+                $params[]  = $pair['batch_id'];
+            }
+            $where = implode(' OR ', $clauses);
         }
-        $where = implode(' OR ', $clauses);
+        
+        $params[] = $uid; // parameter for left join group membership
+        
         $stmt = $this->db->prepare(
-            "SELECT dg.*, c.course_code, c.course_title, b.batch_name,
+            "SELECT DISTINCT dg.*, c.course_code, c.course_title, b.batch_name,
                     (SELECT COUNT(*) FROM discussion_messages WHERE group_id = dg.group_id) AS message_count,
                     (SELECT created_at FROM discussion_messages WHERE group_id = dg.group_id ORDER BY created_at DESC LIMIT 1) AS last_activity
              FROM discussion_groups dg
-             JOIN courses c ON dg.course_id = c.course_id
+             LEFT JOIN courses c ON dg.course_id = c.course_id
              LEFT JOIN batches b ON dg.batch_id = b.batch_id
-             WHERE $where
+             LEFT JOIN discussion_group_members dgm ON dg.group_id = dgm.group_id
+             WHERE ($where) OR dgm.user_id = ?
              ORDER BY last_activity DESC"
         );
         $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
-    /** Groups visible to a student: their batch's groups + any all-batch groups for their batch's courses */
-    public function groupsForStudentBatch(int $batchId, array $courseIds): array
+    /** Groups visible to a student: their batch's groups + any all-batch groups + custom groups they are members of [Point 6] */
+    public function groupsForStudentBatch(int $batchId, array $courseIds, ?int $userId = null): array
     {
-        if (empty($courseIds)) return [];
-        $in = implode(',', array_fill(0, count($courseIds), '?'));
-        $params = array_merge($courseIds, [$batchId]);
+        $userId = $userId ?: Auth::userId();
+        $in = '0';
+        $params = [];
+        
+        if (!empty($courseIds)) {
+            $in = implode(',', array_fill(0, count($courseIds), '?'));
+            $params = array_values($courseIds);
+        }
+        
+        $params[] = $batchId;
+        $params[] = $userId;
+        
         $stmt = $this->db->prepare(
-            "SELECT dg.*, c.course_code, c.course_title, b.batch_name,
+            "SELECT DISTINCT dg.*, c.course_code, c.course_title, b.batch_name,
                     (SELECT COUNT(*) FROM discussion_messages WHERE group_id = dg.group_id) AS message_count,
                     (SELECT created_at FROM discussion_messages WHERE group_id = dg.group_id ORDER BY created_at DESC LIMIT 1) AS last_activity
              FROM discussion_groups dg
-             JOIN courses c ON dg.course_id = c.course_id
+             LEFT JOIN courses c ON dg.course_id = c.course_id
              LEFT JOIN batches b ON dg.batch_id = b.batch_id
-             WHERE dg.course_id IN ($in) AND (dg.batch_id = ? OR dg.batch_id IS NULL)
+             LEFT JOIN discussion_group_members dgm ON dg.group_id = dgm.group_id
+             WHERE (dg.course_id IN ($in) AND (dg.batch_id = ? OR dg.batch_id IS NULL))
+                OR dgm.user_id = ?
              ORDER BY last_activity DESC"
         );
         $stmt->execute($params);
@@ -111,7 +138,7 @@ class DiscussionModel
             "SELECT dg.*, c.course_code, c.course_title, b.batch_name, u.name AS creator_name,
                     (SELECT COUNT(*) FROM discussion_messages WHERE group_id = dg.group_id) AS message_count
              FROM discussion_groups dg
-             JOIN courses c ON dg.course_id = c.course_id
+             LEFT JOIN courses c ON dg.course_id = c.course_id
              LEFT JOIN batches b ON dg.batch_id = b.batch_id
              JOIN users u ON dg.created_by = u.id
              ORDER BY dg.created_at DESC"

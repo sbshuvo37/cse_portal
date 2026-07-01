@@ -13,6 +13,8 @@ $batchId = $student['batch_id'];
 $myCourses = $batchId ? $courseModel->getCoursesForBatch($batchId) : [];
 $myCourseIds = array_column($myCourses, 'course_id');
 
+$db = Database::getInstance()->getConnection();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
@@ -22,8 +24,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hasFile = !empty($_FILES['attachment']['name']);
 
         $group = $discussionModel->findGroupById($groupId);
-        if (!$group || !$discussionModel->studentCanAccessGroup($group, $batchId) || !in_array((int)$group['course_id'], $myCourseIds)) {
-            Helper::setFlash('danger', 'You do not have access to this group.');
+        
+        // ১ নম্বর পরিবর্তন: কাস্টম মেম্বারশিপ ভ্যালিডেশন চেক [Point 6]
+        $isExplicitMember = false;
+        if ($group) {
+            $stmt = $db->prepare("SELECT 1 FROM discussion_group_members WHERE group_id = ? AND user_id = ?");
+            $stmt->execute([$groupId, $uid]);
+            $isExplicitMember = (bool)$stmt->fetch();
+        }
+
+        $isAuthorized = $isExplicitMember || ($group && $discussionModel->studentCanAccessGroup($group, $batchId) && in_array((int)$group['course_id'], $myCourseIds));
+
+        if (!$group || !$isAuthorized) {
+            Helper::setFlash('danger', 'Unauthorized access.');
         } elseif (empty($body) && !$hasFile) {
             Helper::setFlash('danger', 'Write something or attach a file.');
         } else {
@@ -37,25 +50,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         Helper::redirect('student/discussions.php?group=' . $groupId);
     }
-
-    if ($action === 'delete_message') {
-        $messageId = intval($_POST['message_id'] ?? 0);
-        $groupId   = intval($_POST['group_id'] ?? 0);
-        if ($discussionModel->isMessageOwner($messageId, $uid)) {
-            $discussionModel->deleteMessage($messageId);
-        }
-        Helper::redirect('student/discussions.php?group=' . $groupId);
-    }
 }
 
-$groups = $batchId ? $discussionModel->groupsForStudentBatch($batchId, $myCourseIds) : [];
+// ২ নম্বর পরিবর্তন: গ্রুপের তালিকায় শিক্ষার্থীর ID পাস করা হলো [Point 6]
+$groups = $batchId ? $discussionModel->groupsForStudentBatch($batchId, $myCourseIds, $uid) : [];
 
 $activeGroupId = intval($_GET['group'] ?? 0);
 $activeGroup   = null;
 $messages      = [];
+
 if ($activeGroupId) {
     $candidate = $discussionModel->findGroupById($activeGroupId);
-    if ($candidate && $discussionModel->studentCanAccessGroup($candidate, $batchId) && in_array((int)$candidate['course_id'], $myCourseIds)) {
+    
+    // ৩ নম্বর পরিবর্তন: কাস্টম মেম্বারশিপে এড থাকা শিক্ষার্থীরাও চ্যাট পেজ লোড করতে পারবেন [Point 6]
+    $isAuthorized = false;
+    if ($candidate) {
+        $stmt = $db->prepare("SELECT 1 FROM discussion_group_members WHERE group_id = ? AND user_id = ?");
+        $stmt->execute([$candidate['group_id'], $uid]);
+        $isExplicitMember = (bool)$stmt->fetch();
+        
+        if ($isExplicitMember || ($discussionModel->studentCanAccessGroup($candidate, $batchId) && in_array((int)$candidate['course_id'], $myCourseIds))) {
+            $isAuthorized = true;
+        }
+    }
+
+    if ($isAuthorized) {
         $activeGroup = $candidate;
         $messages = $discussionModel->getMessages($activeGroupId);
     }
@@ -74,20 +93,13 @@ include '../includes/header.php';
 <?php $flash = Helper::getFlash(); if ($flash): ?><div class="alert alert-<?= $flash['type'] ?>" data-auto-dismiss><?= htmlspecialchars($flash['message']) ?></div><?php endif; ?>
 
 <?php if ($activeGroup): ?>
-<!-- ===== Group chat view ===== -->
 <div class="page-header">
-    <div><h2>💡 <?= htmlspecialchars($activeGroup['course_code'].' — '.$activeGroup['course_title']) ?></h2>
-    <div class="page-subtitle"><?= htmlspecialchars($activeGroup['batch_name'] ?? 'All Batches') ?> · Group Discussion</div></div>
+    <div><h2>💡 <?= htmlspecialchars($activeGroup['course_code'] ? $activeGroup['course_code'].' — '.$activeGroup['course_title'] : 'Custom Admin Group') ?></h2>
+    <div class="page-subtitle"><?= htmlspecialchars($activeGroup['batch_name'] ?? 'Custom Group') ?> · Group Discussion</div></div>
     <a href="discussions.php" class="btn btn-outline">← Back to Groups</a>
 </div>
 
 <div class="group-chat-panel">
-    <div class="group-chat-header">
-        <div>
-            <div style="font-weight:700;color:var(--primary-dark)">👥 <?= htmlspecialchars($activeGroup['course_title']) ?> Group</div>
-            <div style="font-size:0.76rem;color:var(--text-muted)">Created by <?= htmlspecialchars($activeGroup['creator_name']) ?></div>
-        </div>
-    </div>
     <div class="group-chat-feed">
         <?php if (empty($messages)): ?>
             <div class="empty-state"><div class="empty-icon">💬</div><p>No messages yet. Start the conversation!</p></div>
@@ -96,21 +108,13 @@ include '../includes/header.php';
         <div class="group-msg-row <?= $isMe?'own':'' ?>">
             <div class="group-msg-avatar"><?= Helper::initials($m['author']) ?></div>
             <div class="group-msg-bubble">
-                <div class="group-msg-author"><?= htmlspecialchars($m['author']) ?> <span class="badge badge-gray" style="text-transform:capitalize;font-size:0.6rem"><?= htmlspecialchars($m['author_role']) ?></span></div>
+                <div class="group-msg-author"><?= htmlspecialchars($m['author']) ?> <span class="badge badge-gray" style="font-size:0.6rem"><?= htmlspecialchars($m['author_role']) ?></span></div>
                 <div class="group-msg-content">
                     <?php if (!empty($m['body'])): ?><?= nl2br(htmlspecialchars($m['body'])) ?><?php endif; ?>
-                    <?php if ($m['attachment']): ?><a href="<?= UPLOAD_URL . htmlspecialchars($m['attachment']) ?>" target="_blank" class="chat-attachment-link"><?= Helper::fileIcon($m['attachment']) ?> File</a><?php endif; ?>
+                    <?php if ($m['attachment']): ?><a href="<?= UPLOAD_URL . htmlspecialchars($m['attachment']) ?>" target="_blank" class="chat-attachment-link">📎 File</a><?php endif; ?>
                 </div>
                 <div class="group-msg-time"><?= Helper::formatDate($m['created_at'], 'M j, g:i A') ?></div>
             </div>
-            <?php if ($isMe): ?>
-            <form method="POST" onsubmit="return confirmAction('Delete this message?')">
-                <input type="hidden" name="action" value="delete_message">
-                <input type="hidden" name="message_id" value="<?= $m['message_id'] ?>">
-                <input type="hidden" name="group_id" value="<?= $activeGroup['group_id'] ?>">
-                <button class="group-msg-delete">✕</button>
-            </form>
-            <?php endif; ?>
         </div>
         <?php endforeach; endif; ?>
     </div>
@@ -119,7 +123,6 @@ include '../includes/header.php';
         <input type="hidden" name="group_id" value="<?= $activeGroup['group_id'] ?>">
         <input type="text" name="body" id="groupMsgInput" class="form-control" placeholder="Message the group...">
         <label class="btn btn-sm btn-outline" style="cursor:pointer">📎<input type="file" name="attachment" id="groupAttachInput" style="display:none"></label>
-        <span id="groupAttachName" class="chat-attach-name"></span>
         <button type="submit" class="btn btn-primary">Send</button>
     </form>
 </div>
@@ -131,46 +134,53 @@ include '../includes/header.php';
     const msgInput = document.getElementById('groupMsgInput');
     const form = document.getElementById('groupChatForm');
     fileInput.addEventListener('change', () => { nameDisplay.textContent = fileInput.files[0] ? '📎 ' + fileInput.files[0].name : ''; });
-    form.addEventListener('submit', (e) => {
-        if (msgInput.value.trim() === '' && fileInput.files.length === 0) {
-            e.preventDefault(); msgInput.focus(); msgInput.placeholder = 'Write something or attach a file...';
-        }
-    });
     const feed = document.querySelector('.group-chat-feed');
     if (feed) feed.scrollTop = feed.scrollHeight;
 })();
 </script>
 
 <?php else: ?>
-<!-- ===== Group list view (read-only — students cannot create groups) ===== -->
 <div class="page-header">
     <div><h2>💡 Discussion Groups</h2><div class="page-subtitle">Group chats created by your teachers for your courses</div></div>
 </div>
 
-<?php if (!$batchId): ?>
-    <div class="alert alert-warning">You are not assigned to a batch yet. Please contact the administrator.</div>
-<?php elseif (empty($groups)): ?>
-    <div class="empty-state"><div class="empty-icon">💡</div><p>No discussion groups have been created for your courses yet.</p></div>
-<?php else: ?>
-<div class="group-list">
+<div style="margin-bottom: 18px; max-width: 320px;">
+    <input type="text" id="groupSearchInput" class="form-control" placeholder="🔍 Search groups..." oninput="filterGroupsList()">
+</div>
+
+<div class="group-list" id="groupsContainer">
 <?php foreach ($groups as $g): ?>
-<a href="?group=<?= $g['group_id'] ?>" class="group-card">
+<a href="?group=<?= $g['group_id'] ?>" class="group-card" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 12px; background:white; display:flex; align-items:center;">
     <div class="group-icon">💬</div>
-    <div class="group-info">
-        <div class="group-name"><?= htmlspecialchars($g['course_code'].' — '.$g['course_title']) ?></div>
-        <div class="group-meta">
-            <span class="badge badge-primary"><?= htmlspecialchars($g['batch_name'] ?? 'All Batches') ?></span>
-            <?= $g['message_count'] ?> message<?= $g['message_count']!=1?'s':'' ?>
+    <div class="group-info" style="margin-left: 14px;">
+        <!-- ৪ নম্বর পরিবর্তন: কাস্টম গ্রুপ টাইটেল প্রপার্টি হ্যান্ডেল করা হয়েছে -->
+        <div class="group-name" style="font-weight:700; color:var(--primary-dark);"><?= htmlspecialchars($g['title'] ?: ($g['course_code'] ? $g['course_code'].' — '.$g['course_title'] : 'Custom Admin Group')) ?></div>
+        <div class="group-meta" style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">
+            <span class="badge badge-primary"><?= htmlspecialchars($g['batch_name'] ?? 'Custom Group') ?></span>
+            · Created by: <strong>Teacher / Admin</strong>
         </div>
     </div>
-    <div class="group-activity"><?= $g['last_activity'] ? Helper::timeAgo($g['last_activity']) : 'No activity yet' ?></div>
 </a>
 <?php endforeach; ?>
 </div>
-<?php endif; ?>
 <?php endif; ?>
 
 </div>
 <?php include '../includes/footer.php'; ?>
 </div>
 </div>
+
+<script>
+function filterGroupsList() {
+    const input = document.getElementById('groupSearchInput').value.toLowerCase();
+    const items = document.querySelectorAll('#groupsContainer .group-card');
+    items.forEach(item => {
+        const name = item.querySelector('.group-name').textContent.toLowerCase();
+        if (name.includes(input)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+</script>

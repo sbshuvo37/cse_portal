@@ -6,7 +6,6 @@ Auth::requireRole('admin');
 $userModel    = new User();
 $studentModel = new Student();
 $batchModel   = new BatchModel();
-$notifModel   = new NotificationModel();
 $error        = '';
 $editData     = null;
 
@@ -17,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name    = trim($_POST['name']     ?? '');
         $email   = trim($_POST['email']    ?? '');
         $pass    = trim($_POST['password'] ?? '');
+        $conf    = trim($_POST['confirm_password'] ?? '');
         $roll    = trim($_POST['roll']     ?? '');
         $regNo   = trim($_POST['reg_no']   ?? '');
         $batchId = intval($_POST['batch_id'] ?? 0);
@@ -25,6 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($name) || empty($email) || empty($pass) || empty($roll) || empty($regNo)) {
             $error = 'Please fill in all required fields.';
+        } elseif ($pass !== $conf) {
+            $error = 'Passwords do not match.';
         } elseif ($userModel->emailExists($email)) {
             $error = 'This email is already registered.';
         } else {
@@ -55,17 +57,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($action === 'toggle_status') {
-        $userId = intval($_POST['user_id'] ?? 0);
-        $newStatus = $_POST['current_status'] === 'active' ? 'inactive' : 'active';
-        $userModel->updateStatus($userId, $newStatus);
-        Helper::setFlash('success', 'Account status updated to ' . $newStatus . '.');
-        Helper::redirect('admin/students.php');
-    }
-
     if ($action === 'delete') {
         $userId = intval($_POST['user_id'] ?? 0);
-        $userModel->delete($userId); // cascades to students row via FK
+        $userModel->delete($userId);
         Helper::setFlash('success', 'Student account deleted.');
         Helper::redirect('admin/students.php');
     }
@@ -73,23 +67,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'set_cr') {
         $studentId = intval($_POST['student_id'] ?? 0);
         $batchId   = intval($_POST['batch_id_for_cr'] ?? 0);
-        // Unset existing CR for this batch first
         $currentCr = $studentModel->getCrOfBatch($batchId);
         if ($currentCr) $studentModel->setCr((int)$currentCr['student_id'], false);
         $studentModel->setCr($studentId, true);
-        Helper::setFlash('success', 'Class Representative (CR) updated for this batch.');
+        Helper::setFlash('success', 'Class Representative updated.');
         Helper::redirect('admin/students.php');
     }
 }
 
 if (isset($_GET['edit'])) {
-    $eid = intval($_GET['edit']);
-    $editData = $studentModel->findById($eid);
+    $editData = $studentModel->findById(intval($_GET['edit']));
 }
 
 $batches = $batchModel->all();
 $students = $studentModel->all();
-
 $showModal = (isset($_GET['action']) && $_GET['action']==='add') || $editData;
 
 $pageTitle   = 'Manage Students';
@@ -106,7 +97,7 @@ include '../includes/header.php';
 <?php if ($error): ?><div class="alert alert-danger"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
 <div class="page-header">
-    <div><h2>🎓 Manage Students</h2><div class="page-subtitle">Add, edit, and manage student accounts — use the header search to find a student</div></div>
+    <div><h2>🎓 Manage Students</h2><div class="page-subtitle">Add, edit, and manage student accounts</div></div>
     <a href="?action=add" class="btn btn-primary">+ Add Student</a>
 </div>
 
@@ -131,21 +122,21 @@ include '../includes/header.php';
         <td><?= htmlspecialchars($s['phone'] ?: '—') ?></td>
         <td><?= $s['is_cr'] ? '<span class="badge badge-primary">CR</span>' : '—' ?></td>
         <td>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-                <a href="?edit=<?= $s['student_id'] ?>" class="btn btn-sm btn-accent">✏️ Edit</a>
+            <div style="display:flex; gap:6px; align-items: center;">
+                <a href="?edit=<?= $s['student_id'] ?>" class="btn btn-sm btn-accent" style="height:32px !important;">✏️ Edit</a>
                 
-                <form method="POST" style="display:inline" onsubmit="return confirmAction('Delete this student account? This cannot be undone.')">
+                <form method="POST" style="display:inline; margin:0;" onsubmit="return confirmAction('Delete student?')">
                     <input type="hidden" name="action" value="delete">
                     <input type="hidden" name="user_id" value="<?= $s['user_id'] ?>">
-                    <button class="btn btn-sm btn-danger">🗑 Delete</button>
+                    <button class="btn btn-sm btn-danger" style="height:32px !important;">🗑 Delete</button>
                 </form>
 
                 <?php if (!$s['is_cr'] && $s['batch_id']): ?>
-                <form method="POST" style="display:inline" onsubmit="return confirmAction('Make this student the CR for their batch?')">
+                <form method="POST" style="display:inline; margin:0;" onsubmit="return confirmAction('Make this student CR?')">
                     <input type="hidden" name="action" value="set_cr">
                     <input type="hidden" name="student_id" value="<?= $s['student_id'] ?>">
                     <input type="hidden" name="batch_id_for_cr" value="<?= $s['batch_id'] ?>">
-                    <button class="btn btn-sm btn-outline">👑 Make CR</button>
+                    <button class="btn btn-sm btn-outline" style="height:32px !important;">👑 Make CR</button>
                 </form>
                 <?php endif; ?>
             </div>
@@ -158,7 +149,6 @@ include '../includes/header.php';
 </div>
 </div>
 
-<!-- Add/Edit Modal -->
 <div class="modal-overlay <?= $showModal?'open':'' ?>" id="studentModal">
 <div class="modal-box">
     <div class="modal-header">
@@ -192,6 +182,7 @@ include '../includes/header.php';
             <div class="form-group"><label class="form-label">Phone</label><input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($editData['phone'] ?? '') ?>"></div>
             <?php if (!$editData): ?>
             <div class="form-group"><label class="form-label">Password *</label><input type="password" name="password" class="form-control" required minlength="6"></div>
+            <div class="form-group"><label class="form-label">Confirm Password *</label><input type="password" name="confirm_password" class="form-control" required minlength="6"></div>
             <?php endif; ?>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:10px">

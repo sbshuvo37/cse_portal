@@ -15,11 +15,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name   = trim($_POST['name']        ?? '');
         $email  = trim($_POST['email']       ?? '');
         $pass   = trim($_POST['password']    ?? '');
+        $conf   = trim($_POST['confirm_password'] ?? '');
         $desig  = trim($_POST['designation'] ?? '');
         $phone  = trim($_POST['phone']       ?? '');
 
         if (empty($name) || empty($email) || empty($pass)) {
             $error = 'Please fill in all required fields.';
+        } elseif ($pass !== $conf) {
+            $error = 'Passwords do not match.';
         } elseif ($userModel->emailExists($email)) {
             $error = 'This email is already registered.';
         } else {
@@ -49,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'delete') {
         $userId = intval($_POST['user_id'] ?? 0);
-        $userModel->delete($userId); // cascades to teachers row via FK
+        $userModel->delete($userId);
         Helper::setFlash('success', 'Teacher account deleted.');
         Helper::redirect('admin/teachers.php');
     }
@@ -76,7 +79,7 @@ include '../includes/header.php';
 <?php if ($error): ?><div class="alert alert-danger"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
 <div class="page-header">
-    <div><h2>👨‍🏫 Manage Teachers</h2><div class="page-subtitle">Faculty account management — use the header search to find a teacher</div></div>
+    <div><h2>👨‍🏫 Manage Teachers</h2><div class="page-subtitle">Faculty account management</div></div>
     <a href="?action=add" class="btn btn-primary">+ Add Teacher</a>
 </div>
 
@@ -99,11 +102,11 @@ include '../includes/header.php';
         <td><?= htmlspecialchars($t['phone'] ?: '—') ?></td>
         <td>
             <div style="display:flex;gap:6px">
-                <a href="?edit=<?= $t['teacher_id'] ?>" class="btn btn-sm btn-accent">✏️ Edit</a>
-                <form method="POST" style="display:inline" onsubmit="return confirmAction('Delete this teacher account? This cannot be undone.')">
+                <a href="?edit=<?= $t['teacher_id'] ?>" class="btn btn-sm btn-accent" style="height:32px !important;">✏️ Edit</a>
+                <form method="POST" style="display:inline; margin:0;" onsubmit="return confirmAction('Delete teacher account?')">
                     <input type="hidden" name="action" value="delete">
                     <input type="hidden" name="user_id" value="<?= $t['user_id'] ?>">
-                    <button class="btn btn-sm btn-danger">🗑 Delete</button>
+                    <button class="btn btn-sm btn-danger" style="height:32px !important;">🗑 Delete</button>
                 </form>
             </div>
         </td>
@@ -115,7 +118,6 @@ include '../includes/header.php';
 </div>
 </div>
 
-<!-- Add/Edit Modal -->
 <div class="modal-overlay <?= $showModal?'open':'' ?>" id="teacherModal">
 <div class="modal-box">
     <div class="modal-header">
@@ -138,6 +140,7 @@ include '../includes/header.php';
             <div class="form-group"><label class="form-label">Phone</label><input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($editData['phone'] ?? '') ?>"></div>
             <?php if (!$editData): ?>
             <div class="form-group"><label class="form-label">Password *</label><input type="password" name="password" class="form-control" required minlength="6"></div>
+            <div class="form-group"><label class="form-label">Confirm Password *</label><input type="password" name="confirm_password" class="form-control" required minlength="6"></div>
             <?php endif; ?>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:10px">

@@ -1,7 +1,6 @@
 /* ============================================================
-   CSE Department Portal — style.css
-   Global styles, variables, layout, components
-   Theme: Blue + White
+   CSE Department Portal — style.css (Updated)
+   Theme: Blue + White with unified form fields and buttons
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -271,12 +270,46 @@ h3 { font-size: 1.1rem; }
 .page-subtitle { font-size: 0.82rem; color: var(--text-muted); margin-top: 3px; font-weight: 400; }
 
 /* ============================================================
-   Cards
+   Cards & Layout Custom Boxes [Point 2, 4]
    ============================================================ */
 .card { background: var(--bg-card); border-radius: var(--radius); box-shadow: var(--shadow-sm); border: 1px solid var(--border); overflow: hidden; }
 .card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .card-title { font-size: 0.95rem; font-weight: 700; color: var(--primary-dark); }
 .card-body { padding: 20px; }
+
+/* Dynamic Structural wrappers with borders & distinct sections */
+.section-wrapper-primary {
+    border: 1.5px solid var(--primary-light);
+    border-radius: var(--radius);
+    background: var(--bg-card);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 24px;
+}
+.section-header-primary {
+    background: var(--primary-pale);
+    padding: 16px 20px;
+    border-bottom: 1.5px solid var(--primary-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.section-wrapper-accent {
+    border: 1.5px solid var(--accent);
+    border-radius: var(--radius);
+    background: var(--bg-card);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 24px;
+}
+.section-header-accent {
+    background: rgba(14, 165, 233, 0.04);
+    padding: 16px 20px;
+    border-bottom: 1.5px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
 
 /* ============================================================
    Stat Cards
@@ -319,12 +352,24 @@ tbody tr:nth-child(even) { background: #fafbfc; }
 tbody tr:nth-child(even):hover { background: var(--primary-pale); }
 
 /* ============================================================
-   Buttons
+   Unified Buttons (Standard Heights and Layout)
    ============================================================ */
-.btn {
-    display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: var(--radius-sm);
-    font-family: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer; border: none;
-    transition: all var(--transition); text-decoration: none; white-space: nowrap;
+.btn, .btn-primary, .btn-accent, .btn-success, .btn-danger, .btn-warning, .btn-outline {
+    height: 40px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 18px !important;
+    border-radius: var(--radius-sm) !important;
+    font-family: inherit !important;
+    font-size: 0.86rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    border: none !important;
+    transition: all var(--transition) !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
 }
 .btn-primary  { background: var(--primary); color: white; }
 .btn-primary:hover { background: var(--primary-dark); color: white; }
@@ -336,25 +381,46 @@ tbody tr:nth-child(even):hover { background: var(--primary-pale); }
 .btn-danger:hover { background: #b91c1c; color: white; }
 .btn-warning  { background: var(--warning); color: white; }
 .btn-warning:hover { background: #b45309; color: white; }
-.btn-outline  { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
+.btn-outline  { background: transparent; color: var(--primary); border: 1.5px solid var(--primary) !important; }
 .btn-outline:hover { background: var(--primary); color: white; }
-.btn-sm { padding: 6px 13px; font-size: 0.78rem; }
+.btn-sm { height: 32px !important; padding: 0 12px !important; font-size: 0.78rem !important; }
 .btn-icon { padding: 7px 10px; }
 
 /* ============================================================
-   Forms
+   Forms (Inputs & Aligned Dropdown heights)
    ============================================================ */
 .form-group { margin-bottom: 18px; }
 .form-label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 6px; }
-.form-control {
-    width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-dark); border-radius: var(--radius-sm);
-    font-family: inherit; font-size: 0.88rem; color: var(--text); background: white;
+
+.form-control, select.form-control {
+    height: 44px !important;
+    width: 100%;
+    padding: 10px 14px !important;
+    border: 1.5px solid var(--border-dark) !important;
+    border-radius: var(--radius-sm) !important;
+    font-family: inherit !important;
+    font-size: 0.88rem !important;
+    color: var(--text) !important;
+    background-color: white !important;
+    box-sizing: border-box !important;
     transition: border-color var(--transition), box-shadow var(--transition);
 }
-.form-control:focus { outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(47,111,196,0.13); }
+
+select.form-control {
+    appearance: none !important;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 14px center !important;
+    background-size: 16px !important;
+}
+
+.form-control:focus {
+    outline: none !important;
+    border-color: var(--primary-light) !important;
+    box-shadow: 0 0 0 3px rgba(47,111,196,0.13) !important;
+}
 .form-control::placeholder { color: var(--text-light); }
 .form-control:disabled { background: #f1f5f9; color: var(--text-muted); }
-select.form-control { cursor: pointer; }
 .form-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
 .form-error { font-size: 0.76rem; color: var(--danger); margin-top: 4px; }
 .form-hint { font-size: 0.74rem; color: var(--text-muted); margin-top: 4px; }
@@ -575,4 +641,88 @@ html.no-js .alert[data-auto-dismiss] { display: flex; } /* fallback if JS is dis
 @media (max-width: 500px) {
     .stats-grid { grid-template-columns: 1fr; }
     .form-row { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   Exam Cards & Layouts [Point 2]
+   ============================================================ */
+.exam-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    transition: box-shadow var(--transition);
+}
+.exam-card:hover {
+    box-shadow: var(--shadow);
+}
+.exam-date-box {
+    width: 56px;
+    height: 60px;
+    background: var(--primary);
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.exam-date-day {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: white;
+    line-height: 1;
+}
+.exam-date-month {
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.7);
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.exam-info-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+}
+.exam-info-meta {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 3px;
+}
+
+/* ============================================================
+   Routine File Cards (Mapped from Exam Card aesthetic) [Point 2]
+   ============================================================ */
+.routine-file-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    background: white;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--primary-light);
+    border-radius: var(--radius);
+    padding: 18px 24px;
+    transition: box-shadow var(--transition);
+}
+.routine-file-card:hover {
+    box-shadow: var(--shadow);
+}
+.routine-file-icon {
+    font-size: 2.2rem;
+    flex-shrink: 0;
+}
+.time-cell {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    font-weight: 600;
+}
+.course-cell strong {
+    display: block;
+    font-size: 0.87rem;
+    color: var(--primary-dark);
 }

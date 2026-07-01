@@ -1,7 +1,7 @@
 <?php
 /**
  * sidebar.php — Role-adaptive fixed sidebar
- * Expects: $currentPage (string, for active-state matching), $_SESSION['role']
+ * Unified Discussion under "Communication" for all users.
  */
 $role         = $_SESSION['role'] ?? 'guest';
 $currentPage  = $currentPage ?? '';
@@ -19,16 +19,7 @@ function navItem($href, $icon, $label, $current, $badge = null) {
     </a>';
 }
 
-// Pending counts for admin badges
-$pendingUsersCount  = 0;
-$pendingReqCount    = 0;
-if ($role === 'admin') {
-    $userModel = new User();
-    $pendingUsersCount = count($userModel->getPendingUsers());
-    $prModel = new ProfileRequestModel();
-    $pendingReqCount = $prModel->countPending();
-}
-$totalPendingBadge = ($pendingUsersCount + $pendingReqCount) ?: null;
+$pendingUsersCount = count((new User())->getPendingUsers());
 ?>
 <aside class="<?= $sidebarClass ?>">
     <div class="sidebar-brand">
@@ -50,7 +41,7 @@ $totalPendingBadge = ($pendingUsersCount + $pendingReqCount) ?: null;
     <?php if ($role === 'admin'): ?>
         <div class="nav-section-label">Main</div>
         <?= navItem(BASE_URL.'admin/dashboard.php', '📊', 'Dashboard', $currentPage) ?>
-        <?= navItem(BASE_URL.'admin/approvals.php', '✅', 'Approvals', $currentPage, $totalPendingBadge) ?>
+        <?= navItem(BASE_URL.'admin/approvals.php', '✅', 'Approvals', $currentPage, $pendingUsersCount ?: null) ?>
 
         <div class="nav-section-label">User Management</div>
         <?= navItem(BASE_URL.'admin/students.php', '🎓', 'Students', $currentPage) ?>
@@ -82,10 +73,10 @@ $totalPendingBadge = ($pendingUsersCount + $pendingReqCount) ?: null;
         <?= navItem(BASE_URL.'teacher/students.php', '🎓', 'Students', $currentPage) ?>
         <?= navItem(BASE_URL.'teacher/results.php', '📈', 'Result Entry', $currentPage) ?>
         <?= navItem(BASE_URL.'teacher/resources.php', '📁', 'Resources', $currentPage) ?>
-        <?= navItem(BASE_URL.'teacher/discussions.php', '💡', 'Discussion', $currentPage) ?>
 
         <div class="nav-section-label">Communication</div>
         <?= navItem(BASE_URL.'teacher/notices.php', '📢', 'Notices', $currentPage) ?>
+        <?= navItem(BASE_URL.'teacher/discussions.php', '💡', 'Discussion', $currentPage) ?>
         <?= navItem(BASE_URL.'teacher/messages.php', '💬', 'Messages', $currentPage) ?>
 
     <?php elseif ($role === 'student'): ?>
@@ -98,12 +89,11 @@ $totalPendingBadge = ($pendingUsersCount + $pendingReqCount) ?: null;
         <?= navItem(BASE_URL.'student/exam_schedule.php', '📝', 'Exam Schedule', $currentPage) ?>
         <?= navItem(BASE_URL.'student/results.php', '📈', 'Results', $currentPage) ?>
         <?= navItem(BASE_URL.'student/resources.php', '📁', 'Resources', $currentPage) ?>
-        <?= navItem(BASE_URL.'student/discussions.php', '💡', 'Discussion', $currentPage) ?>
 
         <div class="nav-section-label">Communication</div>
         <?= navItem(BASE_URL.'student/notices.php', '📢', 'Notices', $currentPage) ?>
+        <?= navItem(BASE_URL.'student/discussions.php', '💡', 'Discussion', $currentPage) ?>
         <?= navItem(BASE_URL.'student/messages.php', '💬', 'Messages', $currentPage) ?>
     <?php endif; ?>
-
     </nav>
 </aside>
