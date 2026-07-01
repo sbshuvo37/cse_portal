@@ -1,0 +1,223 @@
+/* ============================================================
+   CSE Department Portal — dashboard.css
+   Role-adaptive components: notices, messages, discussion,
+   resources, profile, modals, approvals
+   ============================================================ */
+
+/* Role-specific sidebar accents */
+.sidebar-admin   .nav-item.active { background: rgba(14,165,233,0.20); color: #0ea5e9; border-left-color: #0ea5e9; }
+.sidebar-teacher .nav-item.active { background: rgba(22,163,74,0.18);  color: #4ade80; border-left-color: #4ade80; }
+.sidebar-student .nav-item.active { background: rgba(56,189,248,0.20); color: #38bdf8; border-left-color: #38bdf8; }
+
+/* ============================================================
+   Activity / Notification list
+   ============================================================ */
+.activity-list { list-style: none; padding: 0; }
+.activity-item { display: flex; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.activity-item:last-child { border-bottom: none; }
+.activity-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary-light); margin-top: 5px; flex-shrink: 0; }
+.activity-time { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+.activity-type-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+/* ============================================================
+   Notice Cards
+   ============================================================ */
+.notice-list { display: flex; flex-direction: column; gap: 16px; }
+.notice-card { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; border-left: 4px solid var(--primary-light); transition: box-shadow var(--transition); }
+.notice-card:hover { box-shadow: var(--shadow); }
+.notice-card-title { font-size: 0.95rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 6px; }
+.notice-card-meta { font-size: 0.74rem; color: var(--text-muted); margin-bottom: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.notice-card-body { font-size: 0.85rem; color: var(--text); line-height: 1.6; }
+.notice-attachments { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.notice-attachment-chip {
+    display: inline-flex; align-items: center; gap: 6px; background: var(--primary-pale); color: var(--primary-dark);
+    padding: 5px 12px; border-radius: 20px; font-size: 0.76rem; font-weight: 600; text-decoration: none;
+}
+.notice-attachment-chip:hover { background: #d9e9fb; }
+
+/* ============================================================
+   Routine
+   ============================================================ */
+.time-cell { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; }
+.course-cell strong { display: block; font-size: 0.87rem; color: var(--primary-dark); }
+.routine-file-card {
+    display: flex; align-items: center; gap: 14px; background: white; border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; transition: box-shadow var(--transition);
+}
+.routine-file-card:hover { box-shadow: var(--shadow); }
+.routine-file-icon { font-size: 2rem; flex-shrink: 0; }
+
+/* ============================================================
+   Result Cards
+   ============================================================ */
+.result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.total-badge {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 48px; height: 32px;
+    border-radius: var(--radius-sm); font-weight: 800; font-size: 0.95rem; padding: 0 10px;
+}
+.total-good { background: #dcfce7; color: #15803d; }
+.total-ok   { background: #fef3c7; color: #b45309; }
+.total-low  { background: #fee2e2; color: #b91c1c; }
+
+/* ============================================================
+   Profile Page
+   ============================================================ */
+.profile-card { background: white; border-radius: var(--radius-lg); box-shadow: var(--shadow); overflow: hidden; max-width: 700px; }
+.profile-header { background: linear-gradient(135deg, var(--primary-dark), var(--primary-light)); padding: 32px; display: flex; align-items: center; gap: 24px; }
+.profile-avatar {
+    width: 84px; height: 84px; border-radius: 50%; background: var(--accent); display: flex; align-items: center;
+    justify-content: center; font-size: 2rem; font-weight: 800; color: white; border: 3px solid rgba(255,255,255,0.3);
+    flex-shrink: 0; overflow: hidden;
+}
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.profile-info-name { font-size: 1.3rem; font-weight: 800; color: white; }
+.profile-info-role { font-size: 0.82rem; color: rgba(255,255,255,0.7); margin-top: 4px; }
+.profile-body { padding: 28px; }
+.profile-field { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
+.profile-field:last-child { border-bottom: none; }
+.profile-field-label { width: 150px; font-weight: 700; color: var(--text-muted); flex-shrink: 0; }
+.profile-field-value { color: var(--text); }
+.pending-request-banner {
+    background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 12px 16px;
+    font-size: 0.82rem; color: #92400e; margin-bottom: 18px; display: flex; gap: 10px; align-items: flex-start;
+}
+
+/* ============================================================
+   Modal
+   ============================================================ */
+.modal-overlay {
+    position: fixed; inset: 0; background: rgba(13,47,92,0.55); z-index: 500; display: none;
+    align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal-box { background: white; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; animation: modalIn 0.22s ease; }
+.modal-box.modal-wide { max-width: 720px; }
+@keyframes modalIn { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.modal-title { font-size: 1rem; font-weight: 800; color: var(--primary-dark); }
+.modal-close { width: 30px; height: 30px; border: none; background: #f1f5f9; border-radius: 6px; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-family: inherit; }
+.modal-close:hover { background: #e2e8f0; color: var(--danger); }
+.modal-body { padding: 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ============================================================
+   Exam cards
+   ============================================================ */
+.exam-card { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; display: flex; align-items: center; gap: 18px; transition: box-shadow var(--transition); }
+.exam-card:hover { box-shadow: var(--shadow); }
+.exam-date-box { width: 56px; height: 60px; background: var(--primary); border-radius: var(--radius-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; }
+.exam-date-day { font-size: 1.4rem; font-weight: 800; color: white; line-height: 1; }
+.exam-date-month { font-size: 0.65rem; color: rgba(255,255,255,0.7); font-weight: 700; text-transform: uppercase; }
+.exam-info-title { font-size: 0.92rem; font-weight: 700; color: var(--primary-dark); }
+.exam-info-meta { font-size: 0.78rem; color: var(--text-muted); margin-top: 3px; }
+
+/* ============================================================
+   Messaging
+   ============================================================ */
+.messaging-layout { display: grid; grid-template-columns: 300px 1fr; gap: 0; height: calc(100vh - var(--nav-h) - 120px); min-height: 480px; background: white; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+.conversation-list { border-right: 1px solid var(--border); overflow-y: auto; background: #fafbfc; }
+.conversation-item { display: flex; gap: 12px; padding: 14px 16px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background var(--transition); text-decoration: none; color: inherit; }
+.conversation-item:hover, .conversation-item.active { background: var(--primary-pale); }
+.conversation-name { font-size: 0.86rem; font-weight: 700; color: var(--primary-dark); }
+.conversation-preview { font-size: 0.76rem; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+.conversation-time { font-size: 0.68rem; color: var(--text-light); margin-top: 4px; }
+
+.chat-panel { display: flex; flex-direction: column; height: 100%; }
+.chat-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.chat-bubble { max-width: 65%; padding: 10px 14px; border-radius: 14px; font-size: 0.86rem; line-height: 1.5; }
+.chat-bubble.sent { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+.chat-bubble.received { background: #f1f5f9; color: var(--text); align-self: flex-start; border-bottom-left-radius: 4px; }
+.chat-bubble-time { font-size: 0.65rem; opacity: 0.65; margin-top: 4px; }
+.chat-input-row { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
+.chat-input-row input[type="text"] { flex: 1; }
+.chat-attach-name {
+    font-size: 0.74rem; color: var(--primary); font-weight: 600;
+    max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex-shrink: 0;
+}
+.chat-attachment-link { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.15); padding: 4px 10px; border-radius: 10px; font-size: 0.74rem; margin-top: 6px; color: inherit; text-decoration: none; }
+.chat-bubble.received .chat-attachment-link { background: #e2e8f0; }
+
+/* ============================================================
+   Discussion Groups (WhatsApp-style group chat list + feed)
+   ============================================================ */
+.group-list { display: flex; flex-direction: column; gap: 10px; }
+.group-card {
+    display: flex; align-items: center; gap: 14px; background: white;
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px;
+    text-decoration: none; transition: box-shadow var(--transition);
+}
+.group-card:hover { box-shadow: var(--shadow); }
+.group-icon {
+    width: 46px; height: 46px; border-radius: 50%; background: var(--primary-pale);
+    color: var(--primary); display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; flex-shrink: 0;
+}
+.group-info { flex: 1; min-width: 0; }
+.group-name { font-size: 0.92rem; font-weight: 700; color: var(--primary-dark); }
+.group-meta { font-size: 0.76rem; color: var(--text-muted); margin-top: 3px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.group-activity { font-size: 0.7rem; color: var(--text-light); flex-shrink: 0; text-align: right; }
+
+.group-chat-header {
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: white;
+}
+.group-chat-feed {
+    flex: 1; overflow-y: auto; padding: 20px;
+    display: flex; flex-direction: column; gap: 10px;
+    background: #f4f7fb;
+}
+.group-msg-row { display: flex; gap: 10px; align-items: flex-start; }
+.group-msg-row.own { flex-direction: row-reverse; }
+.group-msg-avatar {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--primary);
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
+}
+.group-msg-bubble { max-width: 60%; }
+.group-msg-author { font-size: 0.72rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 3px; display: flex; gap: 6px; align-items: center; }
+.group-msg-content {
+    background: white; border-radius: 12px; padding: 10px 14px; font-size: 0.86rem; line-height: 1.5;
+    box-shadow: var(--shadow-sm);
+}
+.group-msg-row.own .group-msg-content { background: var(--primary); color: white; }
+.group-msg-time { font-size: 0.65rem; color: var(--text-light); margin-top: 4px; }
+.group-msg-row.own .group-msg-time { text-align: right; }
+.group-msg-delete {
+    background: none; border: none; color: var(--text-light); cursor: pointer;
+    font-size: 0.7rem; padding: 2px 6px; flex-shrink: 0; align-self: center;
+}
+.group-msg-delete:hover { color: var(--danger); }
+
+.group-chat-input {
+    padding: 14px 20px; border-top: 1px solid var(--border); background: white;
+    display: flex; gap: 10px; align-items: center;
+}
+.group-chat-panel { display: flex; flex-direction: column; height: calc(100vh - var(--nav-h) - 120px); min-height: 480px; background: white; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+
+/* ============================================================
+   Resource list
+   ============================================================ */
+.resource-card { display: flex; align-items: center; gap: 14px; background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; transition: box-shadow var(--transition); }
+.resource-card:hover { box-shadow: var(--shadow); }
+.resource-icon { font-size: 1.8rem; flex-shrink: 0; }
+
+/* ============================================================
+   Approval cards (pending users / profile requests)
+   ============================================================ */
+.approval-card { background: white; border: 1px solid var(--border); border-left: 4px solid var(--warning); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 14px; }
+.approval-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+
+/* ============================================================
+   Pagination
+   ============================================================ */
+.pagination { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 20px; }
+.page-link { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; color: var(--primary); background: white; border: 1px solid var(--border); text-decoration: none; transition: all var(--transition); }
+.page-link:hover, .page-link.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+@media (max-width: 900px) {
+    .messaging-layout { grid-template-columns: 1fr; height: auto; }
+    .conversation-list { max-height: 240px; }
+}
