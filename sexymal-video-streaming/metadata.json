@@ -1,0 +1,6 @@
+{
+  "name": "Sexymal Video Streaming",
+  "description": "A high-performance, mobile-first, YouTube-style video streaming platform with smart recommendations, admin upload panel, light/dark modes, and optimized ad placements.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,5 +1,5 @@
 <?php
-// PHP Error Reporting enabled for safe debugging
+// ১. পিএইচপি এরর রিপোর্টিং চালু করা হলো
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -17,7 +17,7 @@ $error           = '';
 
 $db = Database::getInstance()->getConnection();
 
-// Self-healing DB: Create discussion_group_members table if not exists [Point 5]
+// Self-healing DB: Create discussion_group_members table if not exists
 try {
     $db->query("SELECT 1 FROM discussion_group_members LIMIT 1");
 } catch (PDOException $e) {
@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $selectedStudents = $_POST['student_users'] ?? []; // User IDs of students
         $selectedTeachers = $_POST['teacher_users'] ?? []; // User IDs of teachers
 
-        // Check if total members is less than 2 [Requirement: At least 2 members]
+        // Check if total members is less than 2
         $totalMembersCount = count($selectedStudents) + count($selectedTeachers);
 
         if ($totalMembersCount < 2) {
@@ -247,7 +247,7 @@ include '../includes/header.php';
 <?php } ?>
 </div>
 
-<!-- Create Group Modal with Student, Teacher and Group Name only [Point 5, 6] -->
+<!-- Create Group Modal [Point 5, 6] -->
 <div class="modal-overlay" id="newGroupModal">
 <div class="modal-box modal-wide" style="max-width: 760px;">
     <div class="modal-header">
@@ -262,10 +262,12 @@ include '../includes/header.php';
             <!-- Column 1: Add Students (with dynamic box & add buttons) -->
             <div>
                 <div style="border:1px solid var(--border); padding:16px; border-radius:var(--radius); background:#fafbfc; margin-bottom:15px; height: 100%;">
-                    <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--primary-dark);">🎓 1. Add Students (Optional Batch selection)</h4>
+                    <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--primary-dark);">🎓 1. Add Students</h4>
                     <div class="form-group" style="margin-bottom:12px;">
                         <select id="groupBatchSelect" name="batch_id" class="form-control" onchange="loadStudentsByBatch()">
                             <option value="">-- Select Target Batch --</option>
+                            <!-- All Batch option added [Point 5] -->
+                            <option value="all">All Batch</option>
                             <?php foreach ($batches as $b) { ?>
                             <option value="<?= $b['batch_id'] ?>"><?= htmlspecialchars($b['batch_name'].' ('.$b['session'].')') ?></option>
                             <?php } ?>
@@ -283,7 +285,7 @@ include '../includes/header.php';
             <div>
                 <!-- Add Teacher Block -->
                 <div style="border:1px solid var(--border); padding:16px; border-radius:var(--radius); background:#fafbfc; margin-bottom:15px;">
-                    <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--primary-dark);">👨‍🏫 2. Add Teachers (Optional)</h4>
+                    <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--primary-dark);">👨‍🏫 2. Add Teachers</h4>
                     <div style="max-height: 180px; overflow-y: auto; border:1px solid var(--border); background:white; padding:8px; border-radius:var(--radius-sm);">
                         <?php foreach ($teachers as $t) { ?>
                         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #f1f5f9;">
@@ -296,7 +298,7 @@ include '../includes/header.php';
 
                 <!-- Group Name Input Block -->
                 <div style="border:1px solid var(--border); padding:16px; border-radius:var(--radius); background:#fafbfc;">
-                    <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--primary-dark);">✍️ 3. Group Name (Optional)</h4>
+                    <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--primary-dark);">✍️ 3. Group Name</h4>
                     <input type="text" name="title" class="form-control" placeholder="Enter group name (e.g. Science Lab Group A)...">
                 </div>
             </div>
@@ -350,7 +352,10 @@ function loadStudentsByBatch() {
         return;
     }
 
-    const matches = studentsDatabaseList.filter(s => String(s.batch_id) === String(batchId));
+    // Handles All Batch or specific Batch filter robustly [Point 5]
+    const matches = (batchId === 'all') 
+        ? studentsDatabaseList 
+        : studentsDatabaseList.filter(s => s.batch_id && String(s.batch_id) === String(batchId));
 
     if (matches.length === 0) {
         container.innerHTML = '<span class="text-muted" style="font-size:0.78rem; padding:5px; display:block;">No students mapped in this batch.</span>';
@@ -366,8 +371,8 @@ function loadStudentsByBatch() {
         
         listHtml += `
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #f1f5f9;">
-            <span style="font-size:0.8rem; font-weight:600;">${s.name} (Roll: ${s.roll})</span>
-            <button type="button" class="btn btn-sm ${btnClass}" id="s_btn_${s.user_id}" onclick="toggleStudentMember(${s.user_id})">${btnText}</button>
+            <span style="font-size:0.8rem; font-weight:600;">\${s.name} (Roll: \${s.roll})</span>
+            <button type="button" class="btn btn-sm \${btnClass}" id="s_btn_\${s.user_id}" onclick="toggleStudentMember(\${s.user_id})">\${btnText}</button>
         </div>`;
     });
 
@@ -376,7 +381,10 @@ function loadStudentsByBatch() {
 }
 
 function toggleStudentMember(userId) {
-    const student = studentsDatabaseList.find(s => String(s.user_id) === String(userId));
+    const student = studentsDatabaseList.find(s => {
+        const sUid = s.user_id || s.id;
+        return Number(sUid) === Number(userId);
+    });
     if (!student) return;
     
     const index = selectedStudentIds.indexOf(userId);
@@ -401,7 +409,10 @@ function toggleStudentMember(userId) {
 }
 
 function toggleTeacherMember(userId) {
-    const teacher = teachersDatabaseList.find(t => String(t.user_id) === String(userId));
+    const teacher = teachersDatabaseList.find(t => {
+        const tUid = t.user_id || t.id;
+        return Number(tUid) === Number(userId);
+    });
     if (!teacher) return;
 
     const index = selectedTeacherIds.indexOf(userId);
@@ -432,7 +443,7 @@ function updateVisualSelectionsAndInputs() {
     studentInputsContainer.innerHTML = '';
     teacherInputsContainer.innerHTML = '';
     
-    // Generate hidden inputs dynamically for form POST [Point 5]
+    // Generate hidden inputs dynamically for form POST
     let sInputs = '';
     selectedStudentIds.forEach(id => {
         sInputs += `<input type="hidden" name="student_users[]" value="${id}">`;
@@ -453,7 +464,7 @@ function updateVisualSelectionsAndInputs() {
     let pillCount = 0;
     
     selectedStudentIds.forEach((id) => {
-        const s = studentsDatabaseList.find(item => String(item.user_id) === String(id));
+        const s = studentsDatabaseList.find(item => Number(item.user_id || item.id) === Number(id));
         if (s) {
             pillContainer.innerHTML += `<span class="badge badge-success" style="font-size:0.75rem; margin-right:4px;">🎓 ${s.name}</span>`;
             pillCount++;
@@ -461,7 +472,7 @@ function updateVisualSelectionsAndInputs() {
     });
 
     selectedTeacherIds.forEach((id) => {
-        const t = teachersDatabaseList.find(item => String(item.user_id) === String(id));
+        const t = teachersDatabaseList.find(item => Number(item.user_id || item.id) === Number(id));
         if (t) {
             pillContainer.innerHTML += `<span class="badge badge-warning" style="font-size:0.75rem; margin-right:4px;">👨‍🏫 ${t.name}</span>`;
             pillCount++;
@@ -473,7 +484,7 @@ function updateVisualSelectionsAndInputs() {
     }
 }
 
-// Validation Logic: Check if total added members is at least 2 [Point 5]
+// Validation Logic: Checks if total combined members added is at least 2 [Point 5]
 function validateGroupSubmission() {
     const totalMembers = selectedStudentIds.length + selectedTeacherIds.length;
     if (totalMembers < 2) {
